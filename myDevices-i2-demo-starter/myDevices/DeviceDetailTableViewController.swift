@@ -47,7 +47,7 @@ class DeviceDetailTableViewController: UITableViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        datePicker.addTarget(self, action: "datePickerValueChanged:", forControlEvents: .ValueChanged)
+        datePicker.addTarget(self, action: #selector(DeviceDetailTableViewController.datePickerValueChanged(_:)), forControlEvents: .ValueChanged)
         datePicker.datePickerMode = .Date
         purchaseDateTextField.inputView = datePicker
     }
@@ -59,6 +59,7 @@ class DeviceDetailTableViewController: UITableViewController {
             nameTextField.text = device.name
             deviceTypeTextField.text = device.deviceType
             deviceIdentifierTextField.text = device.deviceID
+            imageView.image = device.image
             
             if let owner = device.owner {
                 deviceOwnerLabel.text = "Device owner: \(owner.name)"
@@ -87,6 +88,7 @@ class DeviceDetailTableViewController: UITableViewController {
             device.deviceType = deviceType
             device.deviceID = deviceIdentifierTextField.text
             device.purchaseDate = selectedDate
+            device.image = imageView.image
         } else if device == nil {
             if let name = nameTextField.text, deviceType = deviceTypeTextField.text, entity = NSEntityDescription.entityForName("Device", inManagedObjectContext: coreDataStack.managedObjectContext) where !name.isEmpty && !deviceType.isEmpty {
                 device = Device(entity: entity, insertIntoManagedObjectContext: coreDataStack.managedObjectContext)
@@ -94,6 +96,7 @@ class DeviceDetailTableViewController: UITableViewController {
                 device?.deviceType = deviceType
                 device?.deviceID = deviceIdentifierTextField.text
                 device?.purchaseDate = selectedDate
+                device?.image = imageView.image
             }
         }
         
@@ -112,6 +115,33 @@ class DeviceDetailTableViewController: UITableViewController {
                 
                 navigationController?.pushViewController(personPicker, animated: true)
             }
+        } else if indexPath.section == 2 && indexPath.row == 0 {
+            // 1
+            let sheet = UIAlertController(title: "Device Image", message: nil, preferredStyle: .ActionSheet)
+            
+            // 2
+            sheet.addAction(UIAlertAction(title: "Cancel", style: .Cancel, handler: nil))
+            
+            // 3
+            if imageView.image != nil {
+                sheet.addAction(UIAlertAction(title: "Remove current image", style: .Destructive, handler: { (action: UIAlertAction) in
+                    dispatch_async(dispatch_get_main_queue(), {
+                        self.imageView.image = nil
+                    })
+                }))
+            }
+            
+            // 4
+            sheet.addAction(UIAlertAction(title: "Select image from library", style: .Default, handler: { (action: UIAlertAction) in
+                let picker = UIImagePickerController()
+                picker.sourceType = .PhotoLibrary
+                picker.delegate = self
+                
+                self.presentViewController(picker, animated: true, completion: nil)
+            }))
+            
+            // 5
+            presentViewController(sheet, animated: true, completion: nil)
         }
         
         tableView.deselectRowAtIndexPath(indexPath, animated: true)
@@ -126,7 +156,20 @@ class DeviceDetailTableViewController: UITableViewController {
 extension DeviceDetailTableViewController: PersonPickerDelegate {
     func didSelectPerson(person: Person) {
         device?.owner = person
-        
         coreDataStack.saveMainContext()
+    }
+}
+
+extension DeviceDetailTableViewController: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+    
+    func imagePickerController(picker: UIImagePickerController, didFinishPickingImage image: UIImage, editingInfo: [String : AnyObject]?) {
+        dispatch_async(dispatch_get_main_queue()) { 
+            self.imageView.image = image
+        }
+        dismissViewControllerAnimated(true, completion: nil)
+    }
+    
+    func imagePickerControllerDidCancel(picker: UIImagePickerController) {
+        dismissViewControllerAnimated(true, completion: nil)
     }
 }
